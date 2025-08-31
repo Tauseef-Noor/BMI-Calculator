@@ -16,6 +16,9 @@ const bmiMessage = document.getElementById('bmiMessage');
 const tipsContainer = document.getElementById('tipsContainer');
 const weightUnit = document.getElementById('weightUnit');
 const heightUnit = document.getElementById('heightUnit');
+const recommendedWeight = document.createElement('div');
+recommendedWeight.className = 'recommended-weight';
+resultCard.appendChild(recommendedWeight);
 
 let isMetric = true;
 
@@ -171,6 +174,25 @@ function switchUnitSystem(useMetric) {
     resultContainer.style.display = 'none';
 }
 
+// Calculate recommended weight range based on height
+function calculateRecommendedWeight(heightInCm, isMetric) {
+    // Convert height to meters
+    const heightInMeters = isMetric ? heightInCm / 100 : heightInCm * 0.0254;
+    
+    // Calculate weight range for normal BMI (18.5 - 24.9)
+    const minWeight = (18.5 * heightInMeters * heightInMeters).toFixed(1);
+    const maxWeight = (24.9 * heightInMeters * heightInMeters).toFixed(1);
+    
+    // Convert back to imperial if needed
+    if (!isMetric) {
+        const minLbs = (minWeight * 2.20462).toFixed(1);
+        const maxLbs = (maxWeight * 2.20462).toFixed(1);
+        return { min: minLbs, max: maxLbs, unit: 'lbs' };
+    }
+    
+    return { min: minWeight, max: maxWeight, unit: 'kg' };
+}
+
 // Calculate BMI
 function calculateBMI() {
     let weight = parseFloat(weightInput.value);
@@ -183,6 +205,10 @@ function calculateBMI() {
         alert('Please enter valid height and weight values');
         return;
     }
+    
+    // Store original values for display
+    const originalHeight = height;
+    const originalWeight = weight;
     
     // Convert imperial to metric if needed
     if (!isMetric) {
@@ -198,11 +224,11 @@ function calculateBMI() {
     const bmi = (weight / (height * height)).toFixed(1);
     
     // Display results
-    showResults(bmi, age, gender);
+    showResults(bmi, age, gender, originalHeight, originalWeight);
 }
 
 // Show results with animations and health tips
-function showResults(bmi, age, gender) {
+function showResults(bmi, age, gender, originalHeight, originalWeight) {
     // Reset classes
     resultCard.className = 'result-card';
     emoji.className = 'emoji';
@@ -210,8 +236,12 @@ function showResults(bmi, age, gender) {
     // Set BMI value
     bmiValue.textContent = bmi;
     
+    // Calculate recommended weight range
+    const weightRange = calculateRecommendedWeight(originalHeight, isMetric);
+    const currentWeight = parseFloat(weightInput.value);
+    
     // Determine BMI category and set appropriate styles
-    let category, categoryClass, emojiChar, animationClass, message, tips;
+    let category, categoryClass, emojiChar, animationClass, message, tips, weightAdvice = '';
     
     if (bmi < 18.5) {
         category = 'Underweight';
@@ -220,6 +250,7 @@ function showResults(bmi, age, gender) {
         animationClass = 'head-shake';
         message = 'Consider consulting a healthcare provider';
         tips = healthTips.underweight;
+        weightAdvice = `Aim for a healthy weight between ${weightRange.min}-${weightRange.max} ${weightRange.unit} for your height.`;
     } else if (bmi >= 18.5 && bmi < 25) {
         category = 'Normal';
         categoryClass = 'normal';
@@ -227,6 +258,7 @@ function showResults(bmi, age, gender) {
         animationClass = 'bounce';
         message = 'Great job! Maintain your healthy lifestyle!';
         tips = healthTips.normal;
+        weightAdvice = `Your weight is in the healthy range (${weightRange.min}-${weightRange.max} ${weightRange.unit}). Keep it up!`;
     } else if (bmi >= 25 && bmi < 30) {
         category = 'Overweight';
         categoryClass = 'overweight';
@@ -234,6 +266,8 @@ function showResults(bmi, age, gender) {
         animationClass = 'float';
         message = 'Consider more physical activity and healthy eating';
         tips = healthTips.overweight;
+        const targetWeight = (weightRange.max * 0.9).toFixed(1); // 10% below max normal weight
+        weightAdvice = `Aim to reach ${targetWeight} ${weightRange.unit} (healthy range: ${weightRange.min}-${weightRange.max} ${weightRange.unit}).`;
     } else {
         category = 'Obese';
         categoryClass = 'obese';
@@ -241,6 +275,8 @@ function showResults(bmi, age, gender) {
         animationClass = 'pulse';
         message = 'Please consult a healthcare provider';
         tips = healthTips.obese;
+        const targetWeight = (weightRange.max * 0.85).toFixed(1); // 15% below max normal weight
+        weightAdvice = `Consult a healthcare provider about reaching a healthy weight (recommended: ${weightRange.min}-${weightRange.max} ${weightRange.unit}).`;
     }
     
     // Update UI
@@ -249,6 +285,18 @@ function showResults(bmi, age, gender) {
     emoji.textContent = emojiChar;
     emoji.classList.add(animationClass);
     resultCard.classList.add(categoryClass);
+    
+    // Display weight advice
+    recommendedWeight.innerHTML = `
+        <div class="weight-advice">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-info">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>${weightAdvice}</span>
+        </div>
+    `;
     
     // Display health tips
     displayHealthTips(tips);
